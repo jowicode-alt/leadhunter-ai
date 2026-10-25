@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8faf9"><title>Workspace · LeadHunter AI</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="index.html"><span class="brand-mark">L</span> LeadHunter <b>AI</b></a><div id="account-area" class="account-area"><span id="user-label">Not signed in</span><button id="signout-btn" class="button button-light hidden">Sign out</button></div></header>
+  <main class="shell">
+    <section id="auth-panel" class="auth-card">
+      <div class="eyebrow">YOUR LEAD GENERATION WORKSPACE</div><h1>Turn your ideal customers into a clear prospect list.</h1>
+      <p class="muted">Sign in to access your workspace. This app connects only after Firebase is configured by the project owner.</p>
+      <div class="auth-tabs"><button id="login-tab" class="tab active">Sign in</button><button id="signup-tab" class="tab">Create account</button></div>
+      <form id="auth-form">
+        <label>Email address<input id="email" type="email" autocomplete="email" required placeholder="you@company.com"></label>
+        <label>Password<input id="password" type="password" autocomplete="current-password" minlength="6" required placeholder="At least 6 characters"></label>
+        <button id="auth-submit" class="button button-primary full" type="submit">Sign in</button>
+      </form>
+      <button id="reset-password" class="text-button">Forgot password?</button><p id="auth-message" class="notice" role="status"></p>
+    </section>
+    <section id="workspace" class="hidden">
+      <div class="welcome-row"><div><div class="eyebrow">WORKSPACE</div><h1>Good work starts with the right leads.</h1><p class="muted">Find prospects that match what your business sells.</p></div><span class="status-pill">MVP · Setup in progress</span></div>
+      <div class="stat-grid"><article class="stat"><span>Prospects saved</span><strong id="prospect-count">0</strong><small>Your saved records</small></article><article class="stat"><span>Campaigns</span><strong id="campaign-count">0</strong><small>Created by you</small></article><article class="stat"><span>Credits</span><strong id="credit-count">—</strong><small>Credits require server setup</small></article></div>
+      <div class="panel"><div class="panel-heading"><div><div class="eyebrow">NEW SEARCH</div><h2>Describe your business</h2></div><span class="step-badge">01</span></div>
+        <p class="muted">Enter your public website. Once the discovery backend is connected, it can analyze your offer and suggest potential buyer companies.</p>
+        <form id="discover-form"><label>Website URL<input id="website-url" type="url" placeholder="https://yourcompany.com" required></label><label>Ideal customers (optional)<textarea id="buyer-description" rows="3" placeholder="e.g. mid-sized hotels in East Africa looking for booking software"></textarea></label><button id="discover-submit" class="button button-primary" type="submit">Prepare lead search <span aria-hidden="true">→</span></button></form>
+        <p id="discover-message" class="notice" role="status"></p>
+      </div>
+      <div class="panel"><div class="panel-heading"><div><div class="eyebrow">YOUR DATA</div><h2>Workspace overview</h2></div></div><div id="empty-state" class="empty-state"><div class="empty-icon">↗</div><h3>Your prospect list starts here</h3><p>No prospects or campaigns have been loaded. Lead discovery and campaign sending are not enabled yet, so this workspace will not invent results or send emails.</p></div></div>
+      <p class="footnote">Use business contact data responsibly. Respect opt-outs, applicable privacy rules, and each recipient's communication preferences.</p>
+    </section>
+  </main>
+  <script type="module" src="app.js"></script>
+</body></html>
