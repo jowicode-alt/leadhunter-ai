@@ -169,82 +169,109 @@ function plainText(markdown) {
     .replace(/\s+/g, " ").trim();
 }
 async function readWebsitePage(url) {
-  const readerUrl = "https://r.jina.ai/" + url.href;
-  const response = await fetch(readerUrl, { headers: { "Accept": "text/plain" } });
+  const response = await fetch("https://r.jina.ai/" + url.href, {headers:{"Accept":"text/plain"}});
   if (!response.ok) throw new Error("Website reader returned HTTP " + response.status);
   const text = await response.text();
-  if (!text || text.length < 80) throw new Error("The website returned too little readable text.");
-  return text.slice(0, 120000);
+  if (!text || text.length < 80) throw new Error("The site returned too little readable text.");
+  return text.slice(0,60000);
+}
+function extractInternalLinks(markdown, baseUrl) {
+  const candidates = [...markdown.matchAll(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/g)]
+    .map(match => { try { return new URL(match[1].replace(/[),.;]+$/, ""), baseUrl); } catch { return null; } })
+    .filter(link => link && link.hostname.replace(/^www\./,"") === baseUrl.hostname.replace(/^www\./,"") && !link.hash)
+    .filter(link => !/\.(?:pdf|jpg|jpeg|png|gif|svg|webp|zip|mp4|mp3|css|js)(?:$|\?)/i.test(link.pathname))
+    .filter((link,index,list) => list.findIndex(other => other.href === link.href) === index);
+  const priority = /about|product|service|solution|business|shop|catalog|what-we-do|company|pricing|industry|sector|customer|client|category|brand|contact|faq|wholesale|partner/i;
+  return candidates.sort((a,b) => Number(priority.test(b.pathname))-Number(priority.test(a.pathname))).slice(0,9);
+}
+async function searchExternalSources(url, title) {
+  const host = url.hostname.replace(/^www\./,"");
+  const brand = (title || host).replace(/\s*[|–—-].*$/, "").trim().slice(0,90);
+  const queries = [
+    '"' + host + '" products services customers',
+    '"' + brand + '" what does it sell services',
+    '"' + host + '" reviews products categories',
+    '"' + brand + '" business customers suppliers partners'
+  ];
+  const results = [];
+  for (const queryText of queries) {
+    try {
+      const searchUrl = "https://www.google.com/search?q=" + encodeURIComponent(queryText);
+      const response = await fetch("https://r.jina.ai/" + searchUrl, {headers:{"Accept":"text/plain"}});
+      if (!response.ok) throw new Error("Search reader HTTP " + response.status);
+      const text = await response.text();
+      results.push({query:queryText,text:text.slice(0,9000)});
+    } catch (error) { results.push({query:queryText,text:"",error:error.message || "unavailable"}); }
+  }
+  return results;
 }
 async function analyzeWebsite(url) {
-  const pages = [{url:url.href, markdown:await readWebsitePage(url)}];
-  const homepage = pages[0].markdown;
-  const links = [...homepage.matchAll(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/g)]
-    .map(match => { try { return new URL(match[1].replace(/[),.;]+$/, ""), url); } catch { return null; } })
-    .filter(link => link && link.hostname === url.hostname && !link.hash)
-    .filter(link => /about|product|service|solution|business|shop|catalog|what-we-do|company/i.test(link.pathname))
-    .filter((link, index, list) => list.findIndex(other => other.href === link.href) === index)
-    .slice(0, 2);
+  const pages = [{url:url.href,markdown:await readWebsitePage(url)}];
+  const links = extractInternalLinks(pages[0].markdown,url);
   for (const link of links) {
-    try { pages.push({url:link.href, markdown:await readWebsitePage(link)}); } catch { /* keep usable homepage analysis */ }
+    try { pages.push({url:link.href,markdown:await readWebsitePage(link)}); } catch { /* skip blocked pages */ }
   }
-  const combined = pages.map(page => page.markdown).join("\n");
-  const text = plainText(combined).slice(0, 18000);
-  const title = (combined.match(/^Title:\s*(.+)$/im) || [])[1]?.trim() || url.hostname;
-  const description = (combined.match(/^(?:Description|Meta Description):\s*(.+)$/im) || [])[1]?.trim() || "";
-  const headings = [...combined.matchAll(/^#{1,3}\s+(.+)$/gm)].map(match => plainText(match[1])).filter(Boolean).slice(0, 8);
-  const terms = [
-    ["e-commerce / retail", /e-?commerce|online shop|online store|retail|shopping|marketplace|products for sale/i],
-    ["software / technology", /software|saas|technology|app development|cloud platform|IT services/i],
-    ["professional services", /consulting|accounting|legal services|professional services|agency/i],
-    ["construction / property", /construction|contractor|real estate|property development|building materials/i],
-    ["education", /school|university|training|education|courses|learning/i],
-    ["healthcare", /clinic|hospital|healthcare|medical|pharmacy|wellness/i],
-    ["hospitality / tourism", /hotel|tourism|travel|accommodation|restaurant|hospitality/i],
-    ["logistics / transport", /logistics|delivery|shipping|transport|freight|warehouse/i],
-    ["manufacturing / wholesale", /manufacturer|manufacturing|wholesale|factory|supplier|distribution/i],
-    ["finance", /finance|financial services|insurance|banking|payments/i]
+  const homepage = pages[0].markdown;
+  const title = (homepage.match(/^Title:\s*(.+)$/im)||[])[1]?.trim() || url.hostname;
+  const externalResults = await searchExternalSources(url,title);
+  const combined = pages.map(page=>page.markdown).concat(externalResults.map(item=>item.text)).join("\n");
+  const text = plainText(combined).slice(0,50000);
+  const description = (combined.match(/^(?:Description|Meta Description):\s*(.+)$/im)||[])[1]?.trim() || "";
+  const headings = [...combined.matchAll(/^#{1,3}\s+(.+)$/gm)].map(match=>plainText(match[1])).filter(item=>item.length>3 && item.length<100).slice(0,15);
+  const industries = [
+    ["e-commerce / online marketplace",/e-?commerce|online marketplace|online shop|online store|shop online|marketplace|shopping platform/i,"Retailers, wholesalers, distributors and brands"],
+    ["retail / consumer products",/retail|clothing|fashion|electronics|homeware|groceries|consumer products|products for sale/i,"Retailers, wholesalers and bulk purchasers"],
+    ["software / technology",/software|saas|technology platform|app development|cloud platform|IT services|digital solutions/i,"Companies needing software, technology or IT services"],
+    ["professional services",/consulting|accounting|legal services|professional services|marketing agency|digital agency/i,"Small and medium businesses needing professional services"],
+    ["construction / property",/construction|contractor|real estate|property development|building materials|architecture/i,"Property developers, contractors and building suppliers"],
+    ["education",/school|university|training|education|courses|learning platform/i,"Schools, training centres and education organisations"],
+    ["healthcare",/clinic|hospital|healthcare|medical|pharmacy|wellness|diagnostic/i,"Clinics, pharmacies, hospitals and healthcare organisations"],
+    ["hospitality / tourism",/hotel|tourism|travel|accommodation|restaurant|hospitality|tour operator/i,"Hotels, lodges, tour operators and restaurants"],
+    ["logistics / transport",/logistics|delivery|shipping|transport|freight|warehouse|courier/i,"Retailers, wholesalers, manufacturers and delivery buyers"],
+    ["manufacturing / wholesale",/manufacturer|manufacturing|wholesale|factory|supplier|distribution/i,"Retailers, distributors, institutions and bulk buyers"],
+    ["finance",/finance|financial services|insurance|banking|payments|lending/i,"Businesses and organisations needing financial services"],
+    ["agriculture / food supply",/agriculture|farm|agri|produce|livestock|seed|fertilizer|food processing/i,"Farmers, agro-dealers, processors and institutional buyers"]
   ];
-  const matched = terms.filter(item => item[1].test(text)).map(item => item[0]);
-  const suggestions = {
-    "e-commerce / retail": "retail shops, wholesalers, distributors and logistics companies",
-    "software / technology": "businesses that may need software, IT support or digital services",
-    "professional services": "small and medium businesses needing professional support",
-    "construction / property": "property developers, contractors and building suppliers",
-    "education": "schools, training centres and education organisations",
-    "healthcare": "clinics, pharmacies and healthcare organisations",
-    "hospitality / tourism": "hotels, lodges, tour operators and restaurants",
-    "logistics / transport": "retailers, wholesalers and businesses needing delivery or freight",
-    "manufacturing / wholesale": "retailers, distributors and institutional buyers",
-    "finance": "SMEs and organisations needing financial services"
-  };
-  const inferred = matched.map(item => suggestions[item]).filter(Boolean);
+  const matched = industries.filter(item=>item[1].test(text));
+  const leadQueries = [];
+  for (const item of matched) {
+    if (/e-commerce|retail/.test(item[0])) leadQueries.push("shops retailers wholesalers distributors");
+    else if (/software|technology/.test(item[0])) leadQueries.push("businesses offices companies");
+    else if (/professional services/.test(item[0])) leadQueries.push("small businesses offices");
+    else if (/construction|property/.test(item[0])) leadQueries.push("construction companies property developers building suppliers");
+    else if (/education/.test(item[0])) leadQueries.push("schools training centres");
+    else if (/healthcare/.test(item[0])) leadQueries.push("clinics pharmacies hospitals");
+    else if (/hospitality/.test(item[0])) leadQueries.push("hotels lodges restaurants");
+    else if (/logistics/.test(item[0])) leadQueries.push("retailers wholesalers manufacturers");
+    else if (/manufacturing/.test(item[0])) leadQueries.push("shops wholesalers distributors");
+    else if (/finance/.test(item[0])) leadQueries.push("business offices");
+    else if (/agriculture/.test(item[0])) leadQueries.push("agro dealers farms food processors");
+  }
+  const evidence = pages.map(item=>({source:item.url,title:(item.markdown.match(/^Title:\s*(.+)$/im)||[])[1]?.trim()||item.url}));
+  externalResults.filter(item=>item.text).forEach(item=>evidence.push({source:"Google Search: "+item.query,title:"External search results"}));
   return {
-    url:url.href, title, description, pagesScanned:pages.length,
-    headings, matched, inferred,
-    excerpt: text.slice(0, 900),
+    url:url.href,title:title,description:description,pagesScanned:pages.length,
+    headings:[...new Set(headings)].slice(0,10),matched:[...new Set(matched.map(item=>item[0]))],
+    buyerSegments:[...new Set(matched.map(item=>item[2]))].slice(0,6),
+    leadQueries:[...new Set(leadQueries)].slice(0,5),evidence:evidence.slice(0,20),
+    excerpt:text.slice(0,1600),externalSearches:externalResults.filter(item=>item.text).length,
     scannedAt:new Date().toISOString()
   };
 }
 function renderWebsiteAnalysis(analysis, warning = "") {
-  const panel = $("website-analysis");
-  panel.classList.remove("hidden");
-  const labels = analysis.matched.length ? analysis.matched.join(", ") : "No clear industry detected automatically";
-  const suggested = analysis.inferred.length ? analysis.inferred.join("; ") : "Review the site summary and enter the kinds of businesses most likely to buy from you.";
-  panel.innerHTML = `
-    <div class="analysis-summary">
-      <div class="eyebrow">WEBSITE SCAN</div>
-      <h3>${escapeHtml(analysis.title)}</h3>
-      <p><strong>Pages read:</strong> ${analysis.pagesScanned} · <strong>Possible industries:</strong> ${escapeHtml(labels)}</p>
-      ${analysis.description ? `<p><strong>Site description:</strong> ${escapeHtml(analysis.description.slice(0, 500))}</p>` : ""}
-      ${analysis.headings.length ? `<p><strong>Key headings:</strong> ${escapeHtml(analysis.headings.join(" · "))}</p>` : ""}
-      <p><strong>Potential buyer ideas:</strong> ${escapeHtml(suggested)}</p>
-      <details><summary>Read extracted website text</summary><p>${escapeHtml(analysis.excerpt)}</p></details>
-      ${warning ? `<p class="notice">${escapeHtml(warning)}</p>` : ""}
-      <small class="field-help">Automated text scan, not a human review or a guarantee of fit. Some sites block readers or render content with JavaScript.</small>
-    </div>`;
+  const panel = $("website-analysis"); panel.classList.remove("hidden");
+  const labels = analysis.matched.length ? analysis.matched.join(", ") : "No clear industry detected from available text";
+  const segments = analysis.buyerSegments.length ? analysis.buyerSegments.join("; ") : "Not enough evidence to infer likely buyers confidently.";
+  const sources = analysis.evidence.map(item=>item.title+" ("+item.source+")").slice(0,8).join(" · ");
+  panel.innerHTML = '<div class="analysis-summary"><div class="eyebrow">WEBSITE & WEB RESEARCH</div><h3>'+escapeHtml(analysis.title)+'</h3><p><strong>Website pages read:</strong> '+analysis.pagesScanned+' · <strong>External searches with results:</strong> '+analysis.externalSearches+'</p>' +
+    (analysis.description ? '<p><strong>Site description:</strong> '+escapeHtml(analysis.description.slice(0,500))+'</p>' : '')+
+    '<p><strong>Likely business areas:</strong> '+escapeHtml(labels)+'</p>'+
+    (analysis.headings.length ? '<p><strong>Products/services or key headings:</strong> '+escapeHtml(analysis.headings.join(" · "))+'</p>' : '')+
+    '<p><strong>Potential customer groups inferred:</strong> '+escapeHtml(segments)+'</p>'+
+    '<details><summary>Research sources and extracted text</summary><p>'+escapeHtml(sources)+'</p><p>'+escapeHtml(analysis.excerpt)+'</p></details>'+
+    (warning ? '<p class="notice">'+escapeHtml(warning)+'</p>' : '')+
+    '<small class="field-help">Automated public-web research can be incomplete. Some sites/search engines block requests; buyer fit is not guaranteed.</small></div>';
 }
-
 function renderResults(leads) {
   $("result-count").textContent = `${leads.length} found`;
   const container = $("results-list"); container.replaceChildren();
@@ -274,50 +301,50 @@ $("discover-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = $("discover-submit"); button.disabled = true;
   $("website-analysis").classList.add("hidden");
-  message("discover-message", "Scanning your website, then finding matching public business listings…");
+  message("discover-message", "Reading your website and researching public web sources…");
   try {
     if (!activeUid) throw new Error("Please sign in again before searching.");
     const website = normalizeWebsite($("website-url").value);
     $("website-url").value = website.href;
     const location = $("target-location").value.trim();
     if (!location) throw new Error("Enter a target location.");
-    let analysis = null, analysisWarning = "";
-    try {
-      analysis = await analyzeWebsite(website);
-      renderWebsiteAnalysis(analysis);
-    } catch (error) {
-      analysisWarning = "Website scan could not complete (" + (error.message || "reader unavailable") + "). You can still search by entering the buyer type below.";
-    }
-    let description = $("buyer-description").value.trim();
-    if (!description && analysis?.inferred?.length) {
-      description = analysis.inferred[0];
-      $("buyer-description").value = description;
-    }
-    if (!description) throw new Error("The site scan could not infer a buyer type. Enter the types of businesses you want to reach, then search again.");
-    message("discover-message", "Website scan complete. Finding public business listings for: " + description);
-    const leads = await searchPublicBusinesses(description, location);
-    if (!leads.length) {
+    const analysis = await analyzeWebsite(website);
+    renderWebsiteAnalysis(analysis);
+    if (!analysis.leadQueries.length) {
       renderResults([]);
-      message("discover-message", "Website scan ran, but no named public listings matched this buyer type and location. Try a nearby city or broader buyer category. " + analysisWarning + " No credits were used.");
-      if (analysis && analysisWarning) renderWebsiteAnalysis(analysis, analysisWarning);
+      message("discover-message", "Website research finished, but the available sources did not provide enough evidence to infer customer groups. Review the scan panel. No credits were used.");
       return;
     }
-    let saved = 0;
+    const allLeads = [], failures = [];
+    for (const buyerType of analysis.leadQueries) {
+      try {
+        const results = await searchPublicBusinesses(buyerType, location);
+        for (const lead of results) {
+          lead.inferredBuyerGroup = buyerType;
+          if (!allLeads.some(existing=>existing.id===lead.id || (existing.name.toLowerCase()===lead.name.toLowerCase() && existing.address.toLowerCase()===lead.address.toLowerCase()))) allLeads.push(lead);
+        }
+      } catch(error) { failures.push(error.message || "One category search failed"); }
+    }
+    const leads = allLeads.slice(0,60);
+    if (!leads.length) {
+      renderResults([]);
+      message("discover-message", "Website research completed, but no matching named businesses were found in "+location+". Try a city or district instead of an entire country. "+(failures[0]||"")+" No credits were used.");
+      return;
+    }
+    let saved=0;
     for (const lead of leads) {
       try {
-        await addDoc(collection(db,"users",activeUid,"prospects"), {
-          ...lead, businessWebsite:website.href,
-          websiteAnalysis:analysis ? {title:analysis.title, matched:analysis.matched, pagesScanned:analysis.pagesScanned} : null,
+        await addDoc(collection(db,"users",activeUid,"prospects"),{
+          ...lead,businessWebsite:website.href,
+          websiteAnalysis:{title:analysis.title,matched:analysis.matched,pagesScanned:analysis.pagesScanned,externalSearches:analysis.externalSearches,buyerSegments:analysis.buyerSegments},
           savedAt:serverTimestamp()
         });
         saved++;
-      } catch { /* still show source-backed results if saving is denied */ }
+      } catch { /* display source-backed results even if saving fails */ }
     }
-    renderResults(leads);
-    await loadCounts(activeUid);
-    message("discover-message", `Scanned ${analysis?.pagesScanned || 0} page(s) of your site and found ${leads.length} public listings for ${description} near ${location}. ${saved} saved. Contacts and buyer fit are not independently verified. No paid credits were used. ${analysisWarning}`, true);
-    if (analysis && analysisWarning) renderWebsiteAnalysis(analysis, analysisWarning);
-  } catch (error) {
-    message("discover-message", error.message || "Search failed. Try again later. No credits were used.");
-  } finally { button.disabled = false; }
+    renderResults(leads); await loadCounts(activeUid);
+    message("discover-message","Researched "+analysis.pagesScanned+" website pages and "+analysis.externalSearches+" external search results; found "+leads.length+" public listings across inferred customer groups. "+saved+" saved. Contacts and buyer fit are not independently verified. No paid credits were used.",true);
+  } catch(error) {
+    message("discover-message",error.message || "Website research failed. Try again later. No credits were used.");
+  } finally { button.disabled=false; }
 });
