@@ -10,7 +10,7 @@
   <main class="shell">
     <section id="auth-panel" class="auth-card">
       <div class="eyebrow">YOUR LEAD GENERATION WORKSPACE</div><h1>Turn your ideal customers into a clear prospect list.</h1>
-      <p class="muted">Sign in to access your workspace. This app connects only after Firebase is configured by the project owner.</p>
+      <p class="muted">Create an account or sign in to access your private workspace.</p>
       <div class="auth-tabs"><button id="login-tab" class="tab active">Sign in</button><button id="signup-tab" class="tab">Create account</button></div>
       <form id="auth-form">
         <label>Email address<input id="email" type="email" autocomplete="email" required placeholder="you@company.com"></label>
@@ -20,15 +20,20 @@
       <button id="reset-password" class="text-button">Forgot password?</button><p id="auth-message" class="notice" role="status"></p>
     </section>
     <section id="workspace" class="hidden">
-      <div class="welcome-row"><div><div class="eyebrow">WORKSPACE</div><h1>Good work starts with the right leads.</h1><p class="muted">Find prospects that match what your business sells.</p></div><span class="status-pill">MVP · Setup in progress</span></div>
-      <div class="stat-grid"><article class="stat"><span>Prospects saved</span><strong id="prospect-count">0</strong><small>Your saved records</small></article><article class="stat"><span>Campaigns</span><strong id="campaign-count">0</strong><small>Created by you</small></article><article class="stat"><span>Credits</span><strong id="credit-count">—</strong><small>Credits require server setup</small></article></div>
-      <div class="panel"><div class="panel-heading"><div><div class="eyebrow">NEW SEARCH</div><h2>Describe your business</h2></div><span class="step-badge">01</span></div>
-        <p class="muted">Enter your public website. Once the discovery backend is connected, it can analyze your offer and suggest potential buyer companies.</p>
-        <form id="discover-form"><label>Website URL<input id="website-url" type="url" placeholder="https://yourcompany.com" required></label><label>Ideal customers (optional)<textarea id="buyer-description" rows="3" placeholder="e.g. mid-sized hotels in East Africa looking for booking software"></textarea></label><button id="discover-submit" class="button button-primary" type="submit">Prepare lead search <span aria-hidden="true">→</span></button></form>
-        <p id="discover-message" class="notice" role="status"></p>
+      <div class="welcome-row"><div><div class="eyebrow">WORKSPACE</div><h1>Find businesses that could become customers.</h1><p class="muted">Start with your business website, then search public business listings by customer type and location.</p></div><span class="status-pill">Free public-data search</span></div>
+      <div class="stat-grid"><article class="stat"><span>Prospects saved</span><strong id="prospect-count">0</strong><small>Your saved records</small></article><article class="stat"><span>Campaigns</span><strong id="campaign-count">0</strong><small>Created by you</small></article><article class="stat"><span>Credits used</span><strong>0</strong><small>No paid credits are deducted</small></article></div>
+      <div class="panel"><div class="panel-heading"><div><div class="eyebrow">NEW SEARCH</div><h2>Find potential customers</h2></div><span class="step-badge">01</span></div>
+        <p class="muted">Enter your website to record what you sell, then describe the types of businesses you want to reach. This first search uses public OpenStreetMap business listings; it does not yet crawl/analyze your own website or verify decision-makers.</p>
+        <form id="discover-form">
+          <label>Your business website<input id="website-url" type="text" inputmode="url" placeholder="jumia.com" autocomplete="url" required><small class="field-help">Just enter a domain like jumia.com. We’ll add https:// automatically.</small></label>
+          <label>Businesses you want to find<input id="buyer-description" type="text" placeholder="e.g. hotels, restaurants, clothing shops" required></label>
+          <label>Target location<input id="target-location" type="text" value="Uganda" placeholder="e.g. Kampala, Uganda" required></label>
+          <button id="discover-submit" class="button button-primary" type="submit">Search public listings <span aria-hidden="true">→</span></button>
+        </form>
+        <p id="discover-message" class="notice" role="status" aria-live="polite"></p>
       </div>
-      <div class="panel"><div class="panel-heading"><div><div class="eyebrow">YOUR DATA</div><h2>Workspace overview</h2></div></div><div id="empty-state" class="empty-state"><div class="empty-icon">↗</div><h3>Your prospect list starts here</h3><p>No prospects or campaigns have been loaded. Lead discovery and campaign sending are not enabled yet, so this workspace will not invent results or send emails.</p></div></div>
-      <p class="footnote">Use business contact data responsibly. Respect opt-outs, applicable privacy rules, and each recipient's communication preferences.</p>
+      <div class="panel"><div class="panel-heading"><div><div class="eyebrow">DISCOVERY RESULTS</div><h2>Potential customers</h2></div><span id="result-count" class="step-badge">0 found</span></div><div id="results-list" class="results-list"><div class="empty-state"><div class="empty-icon">↗</div><h3>Your prospect list starts here</h3><p>Search public business listings to find potential leads. Results show their public source and may have incomplete contact details.</p></div></div></div>
+      <p class="footnote">Data source: OpenStreetMap contributors. Public listings may be incomplete or outdated. Confirm details before contacting businesses, respect opt-outs and applicable privacy/email rules.</p>
     </section>
   </main>
   <script type="module" src="app.js"></script>
