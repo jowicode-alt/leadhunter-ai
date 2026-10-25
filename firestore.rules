@@ -15,7 +15,7 @@ service cloud.firestore {
 
       match /{userCollection}/{documentId} {
         allow read, write: if isOwner(uid)
-          && userCollection in ['prospects', 'campaigns', 'settings', 'usage'];
+          && userCollection in ['prospects', 'campaigns', 'settings', 'usage', 'outreach', 'appointments'];
       }
     }
 
