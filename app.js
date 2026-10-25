@@ -161,12 +161,12 @@ async function searchPublicBusinesses(description, location) {
 
 function plainText(markdown) {
   return String(markdown || "")
-    .replace(/!\\[[^\\]]*\\]\\([^)]*\\)/g, " ")
-    .replace(/\\[([^\\]]+)\\]\\([^)]*\\)/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/<[^>]+>/g, " ")
-    .replace(/^\\s{0,3}#{1,6}\\s+/gm, "")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
     .replace(/[*_~`>#|]/g, " ")
-    .replace(/\\s+/g, " ").trim();
+    .replace(/\s+/g, " ").trim();
 }
 async function readWebsitePage(url) {
   const readerUrl = "https://r.jina.ai/" + url.href;
@@ -179,7 +179,7 @@ async function readWebsitePage(url) {
 async function analyzeWebsite(url) {
   const pages = [{url:url.href, markdown:await readWebsitePage(url)}];
   const homepage = pages[0].markdown;
-  const links = [...homepage.matchAll(/\\[[^\\]]+\\]\\((https?:\\/\\/[^)\\s]+)\\)/g)]
+  const links = [...homepage.matchAll(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/g)]
     .map(match => { try { return new URL(match[1].replace(/[),.;]+$/, ""), url); } catch { return null; } })
     .filter(link => link && link.hostname === url.hostname && !link.hash)
     .filter(link => /about|product|service|solution|business|shop|catalog|what-we-do|company/i.test(link.pathname))
@@ -188,11 +188,11 @@ async function analyzeWebsite(url) {
   for (const link of links) {
     try { pages.push({url:link.href, markdown:await readWebsitePage(link)}); } catch { /* keep usable homepage analysis */ }
   }
-  const combined = pages.map(page => page.markdown).join("\\n");
+  const combined = pages.map(page => page.markdown).join("\n");
   const text = plainText(combined).slice(0, 18000);
-  const title = (combined.match(/^Title:\\s*(.+)$/im) || [])[1]?.trim() || url.hostname;
-  const description = (combined.match(/^(?:Description|Meta Description):\\s*(.+)$/im) || [])[1]?.trim() || "";
-  const headings = [...combined.matchAll(/^#{1,3}\\s+(.+)$/gm)].map(match => plainText(match[1])).filter(Boolean).slice(0, 8);
+  const title = (combined.match(/^Title:\s*(.+)$/im) || [])[1]?.trim() || url.hostname;
+  const description = (combined.match(/^(?:Description|Meta Description):\s*(.+)$/im) || [])[1]?.trim() || "";
+  const headings = [...combined.matchAll(/^#{1,3}\s+(.+)$/gm)].map(match => plainText(match[1])).filter(Boolean).slice(0, 8);
   const terms = [
     ["e-commerce / retail", /e-?commerce|online shop|online store|retail|shopping|marketplace|products for sale/i],
     ["software / technology", /software|saas|technology|app development|cloud platform|IT services/i],
