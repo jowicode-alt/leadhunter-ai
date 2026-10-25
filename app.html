@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f8faf9"><title>Workspace · LeadHunter AI</title>
-  <link rel="stylesheet" href="app.css?v=auto-discovery-4">
+  <link rel="stylesheet" href="app.css?v=outreach-1">
 </head>
 <body>
   <header class="topbar"><a class="brand" href="index.html"><span class="brand-mark">L</span> LeadHunter <b>AI</b></a><div id="account-area" class="account-area"><span id="user-label">Not signed in</span><button id="signout-btn" class="button button-light hidden">Sign out</button></div></header>
@@ -33,8 +33,39 @@
       </div>
       <div id="website-analysis" class="panel hidden" aria-live="polite"></div>
       <div class="panel"><div class="panel-heading"><div><div class="eyebrow">DISCOVERY RESULTS</div><h2>Potential customers</h2></div><span id="result-count" class="step-badge">0 found</span></div><div id="results-list" class="results-list"><div class="empty-state"><div class="empty-icon">↗</div><h3>Your prospect list starts here</h3><p>LeadHunter will infer customer groups from your website research, then show matching public listings and their available source/contact details.</p></div></div></div>
+      <section id="followup-panel" class="panel hidden">
+        <div class="panel-heading"><div><div class="eyebrow">OUTREACH & APPOINTMENTS</div><h2 id="followup-title">Contact a prospect</h2></div><button id="close-followup" type="button" class="button button-light">Close</button></div>
+        <p class="muted">Prepare a personalised message, review it, then open your email or WhatsApp app to send it yourself. You can also record a proposed meeting or a confirmed appointment.</p>
+        <div class="followup-grid">
+          <form id="outreach-form">
+            <h3>1. Prepare contact message</h3>
+            <label>Prospect<input id="outreach-prospect" type="text" readonly></label>
+            <label>Contact channel<select id="outreach-channel"><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="call">Phone call script</option></select></label>
+            <label>Email address<input id="outreach-email" type="email" placeholder="Public business email, if available"></label>
+            <label>Phone / WhatsApp<input id="outreach-phone" type="tel" placeholder="Include country code when known"></label>
+            <label>Subject<input id="outreach-subject" type="text" placeholder="A quick introduction"></label>
+            <label>Message / call notes<textarea id="outreach-message" rows="7" required></textarea></label>
+            <div class="followup-actions">
+              <button class="button button-primary" type="submit">Save draft</button>
+              <button id="open-contact" class="button button-light" type="button">Open contact app</button>
+            </div>
+            <p id="outreach-status" class="notice" role="status"></p>
+          </form>
+          <form id="appointment-form">
+            <h3>2. Plan an appointment</h3>
+            <label>Meeting title<input id="appointment-title" type="text" required value="Introductory meeting"></label>
+            <label>Date and time (Uganda time)<input id="appointment-start" type="datetime-local" required></label>
+            <label>Duration<select id="appointment-duration"><option value="15">15 minutes</option><option value="30" selected>30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option></select></label>
+            <label>Status<select id="appointment-status"><option value="proposed">Proposed — awaiting customer confirmation</option><option value="confirmed">Confirmed by customer</option><option value="follow-up">Follow-up reminder</option></select></label>
+            <label>Meeting method / notes<textarea id="appointment-notes" rows="4" placeholder="Phone call, WhatsApp, online meeting, venue, agenda…"></textarea></label>
+            <div class="followup-actions"><button class="button button-primary" type="submit">Save appointment</button><button id="download-invite" class="button button-light" type="button" disabled>Download calendar file</button></div>
+            <p id="appointment-message" class="notice" role="status"></p>
+          </form>
+        </div>
+        <div class="appointment-list"><h3>Saved appointments</h3><div id="appointments-list"><p class="muted">Choose a prospect to view or add appointments.</p></div></div>
+      </section>
       <p class="footnote">Data source: OpenStreetMap contributors. Public listings may be incomplete or outdated. Confirm details before contacting businesses, respect opt-outs and applicable privacy/email rules.</p>
     </section>
   </main>
-  <script type="module" src="app.js?v=auto-discovery-4"></script>
+  <script type="module" src="app.js?v=outreach-1"></script>
 </body></html>
