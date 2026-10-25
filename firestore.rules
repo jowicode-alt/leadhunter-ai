@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // Client users may read their own profile. Clients cannot set a role on create
+    // or change a role later. Privileged roles must be assigned server-side.
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && !('role' in request.resource.data);
+      allow update: if isOwner(uid)
+        && request.resource.data.role == resource.data.role;
+      allow delete: if false;
+
+      match /{userCollection}/{documentId} {
+        allow read, write: if isOwner(uid)
+          && userCollection in ['prospects', 'campaigns', 'settings', 'usage'];
+      }
+    }
+
+    // All other collections are denied until deliberately designed and reviewed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
