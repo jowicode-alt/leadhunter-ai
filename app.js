@@ -374,10 +374,10 @@ function defaultAppointmentTime() {
 }
 async function findPublicContactDetails(lead) {
   const found = { email: lead.email || "", phone: lead.phone || "", website: lead.website || "", source: "" };
-  const host = (value) => { try { return new URL(/^https?:\\/\\//i.test(value) ? value : "https://" + value).hostname.replace(/^www\\./,""); } catch { return ""; } };
+  const host = (value) => { try { return new URL(/^https?:\/\//i.test(value) ? value : "https://" + value).hostname.replace(/^www\./,""); } catch { return ""; } };
   const candidates = [];
   if (lead.website) {
-    const site = /^https?:\\/\\//i.test(lead.website) ? lead.website : "https://" + lead.website;
+    const site = /^https?:\/\//i.test(lead.website) ? lead.website : "https://" + lead.website;
     candidates.push(site, new URL("/contact", site).href, new URL("/contact-us", site).href, new URL("/about", site).href);
   }
   const queryText = '"' + (lead.name || "") + '" ' + (lead.targetLocation || "") + ' official website contact email phone';
@@ -392,21 +392,21 @@ async function findPublicContactDetails(lead) {
       pages.push({ url:candidate, text });
     } catch { /* a blocked page is not evidence of missing contact details */ }
   }
-  const allText = pages.map(p=>p.text).join("\\n");
+  const allText = pages.map(p=>p.text).join("\n");
   if (!found.email) {
-    const emails = [...new Set((allText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi) || []).map(e=>e.replace(/[.,;:)]+$/,"")))]
-      .filter(e=>!/(example\\.|domain\\.|yourcompany|wixpress|sentry|cloudflare|noreply|no-reply|invalid)/i.test(e));
+    const emails = [...new Set((allText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []).map(e=>e.replace(/[.,;:)]+$/,"")))]
+      .filter(e=>!/(example\.|domain\.|yourcompany|wixpress|sentry|cloudflare|noreply|no-reply|invalid)/i.test(e));
     const leadHost = host(lead.website);
-    found.email = emails.find(e=>leadHost && e.toLowerCase().endsWith("@"+leadHost)) || emails.find(e=>!/gmail\\.com$|yahoo\\.com$|hotmail\\.com$|outlook\\.com$/i.test(e)) || emails[0] || "";
+    found.email = emails.find(e=>leadHost && e.toLowerCase().endsWith("@"+leadHost)) || emails.find(e=>!/gmail\.com$|yahoo\.com$|hotmail\.com$|outlook\.com$/i.test(e)) || emails[0] || "";
   }
   if (!found.phone) {
-    const lines = allText.split(/\\r?\\n/);
+    const lines = allText.split(/\r?\n/);
     const candidatesPhone = [];
     for (const line of lines) {
       if (!/phone|tel(?:ephone)?|call|whatsapp|contact|mobile/i.test(line)) continue;
-      for (const match of line.matchAll(/(?:\\+?\\d[\\d ().-]{7,}\\d)/g)) {
+      for (const match of line.matchAll(/(?:\+?\d[\d ().-]{7,}\d)/g)) {
         const value = match[0].trim().replace(/[.)]+$/,"");
-        const digits = value.replace(/\\D/g,"");
+        const digits = value.replace(/\D/g,"");
         if (digits.length >= 9 && digits.length <= 15 && !/^0+$/.test(digits)) candidatesPhone.push(value);
       }
     }
@@ -414,8 +414,8 @@ async function findPublicContactDetails(lead) {
   }
   if (!found.website) {
     for (const page of pages) {
-      const urls = [...page.text.matchAll(/https?:\\/\\/[^\\s)\\]>"]+/g)].map(m=>m[0].replace(/[.,;]+$/,""));
-      const result = urls.find(u=>{const h=host(u);return h && !/(google\\.|jina\\.ai|openstreetmap\\.org|facebook\\.com|instagram\\.com|linkedin\\.com|youtube\\.com)/i.test(h);});
+      const urls = [...page.text.matchAll(/https?:\/\/[^\s)\]>"]+/g)].map(m=>m[0].replace(/[.,;]+$/,""));
+      const result = urls.find(u=>{const h=host(u);return h && !/(google\.|jina\.ai|openstreetmap\.org|facebook\.com|instagram\.com|linkedin\.com|youtube\.com)/i.test(h);});
       if (result) { found.website = result; break; }
     }
   }
