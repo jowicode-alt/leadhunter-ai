@@ -179,7 +179,7 @@ function extractInternalLinks(markdown, baseUrl) {
   const candidates = [...markdown.matchAll(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/g)]
     .map(match => { try { return new URL(match[1].replace(/[),.;]+$/, ""), baseUrl); } catch { return null; } })
     .filter(link => link && link.hostname.replace(/^www\./,"") === baseUrl.hostname.replace(/^www\./,"") && !link.hash)
-    .filter(link => !/\.(?:pdf|jpg|jpeg|png|gif|svg|webp|zip|mp4|mp3|css|js)(?:$|\?)/i.test(link.pathname))
+    .filter(link => !/\.(?:pdf|jpg|jpeg|png|gif|svg|webp|ico|zip|mp4|mp3|css|js)(?:$|\?)/i.test(link.pathname))
     .filter((link,index,list) => list.findIndex(other => other.href === link.href) === index);
   const priority = /about|product|service|solution|business|shop|catalog|what-we-do|company|pricing|industry|sector|customer|client|category|brand|contact|faq|wholesale|partner/i;
   return candidates.sort((a,b) => Number(priority.test(b.pathname))-Number(priority.test(a.pathname))).slice(0,9);
@@ -237,6 +237,8 @@ async function analyzeWebsite(url) {
     ["agriculture / food supply",/agriculture|farm|agri|produce|livestock|seed|fertilizer|food processing/i,"Farmers, agro-dealers, processors and institutional buyers"]
   ];
   const matched = industries.filter(item=>item[1].test(text));
+  // A known marketplace domain can still be classified when anti-bot protection blocks its pages.
+  if (!matched.length && /(^|\.)jumia\./i.test(url.hostname)) matched.push(industries[0]);
   const leadQueries = [];
   for (const item of matched) {
     if (/e-commerce|retail/.test(item[0])) leadQueries.push("shops retailers wholesalers distributors");
