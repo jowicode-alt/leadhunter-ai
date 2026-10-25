@@ -186,7 +186,9 @@ function extractInternalLinks(markdown, baseUrl) {
 }
 async function searchExternalSources(url, title) {
   const host = url.hostname.replace(/^www\./,"");
-  const brand = (title || host).replace(/\s*[|–—-].*$/, "").trim().slice(0,90);
+  const safeTitle = (title && !/just a moment|security verification|captcha|favicon|unusual traffic/i.test(title)) ? title : "";
+  const label = safeTitle || (host.split(".")[0] === "jumia" ? "Jumia" : host.split(".")[0].replace(/[-_]/g," "));
+  const brand = label.replace(/\s*[|–—-].*$/, "").trim().slice(0,90);
   const queries = [
     '"' + host + '" products services customers',
     '"' + brand + '" what does it sell services',
@@ -212,12 +214,14 @@ async function analyzeWebsite(url) {
     try { pages.push({url:link.href,markdown:await readWebsitePage(link)}); } catch { /* skip blocked pages */ }
   }
   const homepage = pages[0].markdown;
-  const title = (homepage.match(/^Title:\s*(.+)$/im)||[])[1]?.trim() || url.hostname;
+  const rawTitle = (homepage.match(/^Title:\s*(.+)$/im)||[])[1]?.trim() || "";
+  const title = /just a moment|security verification|captcha|favicon|unusual traffic/i.test(rawTitle) ? (url.hostname.replace(/^www\./,"").split(".")[0] === "jumia" ? "Jumia" : url.hostname.replace(/^www\./,"").split(".")[0]) : (rawTitle || url.hostname);
   const externalResults = await searchExternalSources(url,title);
-  const combined = pages.map(page=>page.markdown).concat(externalResults.map(item=>item.text)).join("\n");
+  const usableExternalResults = externalResults.filter(item=>item.text && !/just a moment|security verification|verify you are not a bot|unusual traffic|captcha|access denied/i.test(item.text));
+  const combined = pages.map(page=>page.markdown).concat(usableExternalResults.map(item=>item.text)).join("\n");
   const text = plainText(combined).slice(0,50000);
   const description = (combined.match(/^(?:Description|Meta Description):\s*(.+)$/im)||[])[1]?.trim() || "";
-  const headings = [...combined.matchAll(/^#{1,3}\s+(.+)$/gm)].map(match=>plainText(match[1])).filter(item=>item.length>3 && item.length<100).slice(0,15);
+  const headings = [...combined.matchAll(/^#{1,3}\s+(.+)$/gm)].map(match=>plainText(match[1])).filter(item=>item.length>3 && item.length<100 && !/just a moment|security verification|captcha|favicon|unusual traffic/i.test(item)).slice(0,15);
   const industries = [
     ["e-commerce / online marketplace",/e-?commerce|online marketplace|online shop|online store|shop online|marketplace|shopping platform/i,"Retailers, wholesalers, distributors and brands"],
     ["retail / consumer products",/retail|clothing|fashion|electronics|homeware|groceries|consumer products|products for sale/i,"Retailers, wholesalers and bulk purchasers"],
@@ -248,13 +252,13 @@ async function analyzeWebsite(url) {
     else if (/agriculture/.test(item[0])) leadQueries.push("agro dealers farms food processors");
   }
   const evidence = pages.map(item=>({source:item.url,title:(item.markdown.match(/^Title:\s*(.+)$/im)||[])[1]?.trim()||item.url}));
-  externalResults.filter(item=>item.text).forEach(item=>evidence.push({source:"Google Search: "+item.query,title:"External search results"}));
+  usableExternalResults.forEach(item=>evidence.push({source:"External search: "+item.query,title:"External search results"}));
   return {
     url:url.href,title:title,description:description,pagesScanned:pages.length,
     headings:[...new Set(headings)].slice(0,10),matched:[...new Set(matched.map(item=>item[0]))],
     buyerSegments:[...new Set(matched.map(item=>item[2]))].slice(0,6),
     leadQueries:[...new Set(leadQueries)].slice(0,5),evidence:evidence.slice(0,20),
-    excerpt:text.slice(0,1600),externalSearches:externalResults.filter(item=>item.text).length,
+    excerpt:text.slice(0,1600),externalSearches:usableExternalResults.length,
     scannedAt:new Date().toISOString()
   };
 }
