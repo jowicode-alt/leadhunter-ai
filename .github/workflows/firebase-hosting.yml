@@ -16,6 +16,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Deploy Firestore security rules
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LEADHUNTER_AI_8AC33 }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          npm install --global firebase-tools
+          firebase deploy --only firestore:rules --project leadhunter-ai-8ac33 --non-interactive
+
       - name: Deploy website to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
