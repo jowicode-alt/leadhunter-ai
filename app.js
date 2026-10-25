@@ -374,8 +374,8 @@ function defaultAppointmentTime() {
 }
 async function findPublicContactDetails(lead) {
   const found = { email: lead.email || "", phone: lead.phone || "", website: lead.website || "", source: "" };
-  const normalizeHost = value => { try { return new URL(/^https?:\\/\\//i.test(value) ? value : "https://" + value).hostname.replace(/^www\\./i,"").toLowerCase(); } catch { return ""; } };
-  const blockedHost = /(^|\\.)(google|bing|duckduckgo|jina|openstreetmap|facebook|instagram|linkedin|youtube|tiktok|x|twitter|wikipedia)\\./i;
+  const normalizeHost = value => { try { return new URL(/^https?:\/\//i.test(value) ? value : "https://" + value).hostname.replace(/^www\./i,"").toLowerCase(); } catch { return ""; } };
+  const blockedHost = /(^|\.)(google|bing|duckduckgo|jina|openstreetmap|facebook|instagram|linkedin|youtube|tiktok|x|twitter|wikipedia)\./i;
   const pages = [];
   const addPage = (url, text) => { if (text && !pages.some(p=>p.url===url)) pages.push({url,text}); };
   const read = async url => {
@@ -387,12 +387,12 @@ async function findPublicContactDetails(lead) {
       return text;
     } catch { return ""; }
   };
-  const site = found.website ? (/^https?:\\/\\//i.test(found.website) ? found.website : "https://" + found.website) : "";
+  const site = found.website ? (/^https?:\/\//i.test(found.website) ? found.website : "https://" + found.website) : "";
   if (site) {
     const root = await read(site);
     if (root) {
       addPage(site,root);
-      const linked = [...root.matchAll(/\\[[^\\]]+\\]\\((https?:\\/\\/[^)\\s]+)\\)/g)]
+      const linked = [...root.matchAll(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/g)]
         .map(m=>m[1].replace(/[),.;]+$/,""))
         .filter(url=>normalizeHost(url)===normalizeHost(site) && /contact|about|support|help|reach|location|company|team/i.test(url))
         .slice(0,5);
@@ -424,35 +424,35 @@ async function findPublicContactDetails(lead) {
     }
     if (pages.length>=13) break;
   }
-  const allText = pages.map(p=>p.text).join("\\n");
-  const cleanEmail = value=>value.replace(/[.,;:)\\]]+$/,"").toLowerCase();
+  const allText = pages.map(p=>p.text).join("\n");
+  const cleanEmail = value=>value.replace(/[.,;:)\]]+$/,"").toLowerCase();
   if (!found.email) {
-    const emails=[...new Set((allText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi)||[]).map(cleanEmail))]
-      .filter(e=>!/(example\\.|domain\\.|yourcompany|wixpress|sentry|cloudflare|noreply|no-reply|invalid|\\.png$|\\.jpg$)/i.test(e));
+    const emails=[...new Set((allText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)||[]).map(cleanEmail))]
+      .filter(e=>!/(example\.|domain\.|yourcompany|wixpress|sentry|cloudflare|noreply|no-reply|invalid|\.png$|\.jpg$)/i.test(e));
     const siteHost=normalizeHost(site);
     found.email=emails.find(e=>siteHost && e.split("@")[1]===siteHost)
-      || emails.find(e=>!/(gmail|yahoo|hotmail|outlook|icloud)\\.com$/i.test(e))
+      || emails.find(e=>!/(gmail|yahoo|hotmail|outlook|icloud)\.com$/i.test(e))
       || emails[0] || "";
   }
   if (!found.phone) {
-    const lines=allText.split(/\\r?\\n/);
+    const lines=allText.split(/\r?\n/);
     const phoneCandidates=[];
     for(let i=0;i<lines.length;i++){
       const context=[lines[i-1]||"",lines[i],lines[i+1]||""].join(" ");
       if(!/phone|tel(?:ephone)?|call|whats.?app|contact|mobile|customer service|reach us/i.test(context)) continue;
-      for(const match of context.matchAll(/(?:\\+?\\d[\\d ()./-]{7,}\\d)/g)){
-        const value=match[0].trim().replace(/[.)]+$/,""), digits=value.replace(/\\D/g,"");
-        if(digits.length>=9 && digits.length<=15 && !/^0+$/.test(digits) && !/^20\\d{2}\\D/.test(value)) phoneCandidates.push(value);
+      for(const match of context.matchAll(/(?:\+?\d[\d ()./-]{7,}\d)/g)){
+        const value=match[0].trim().replace(/[.)]+$/,""), digits=value.replace(/\D/g,"");
+        if(digits.length>=9 && digits.length<=15 && !/^0+$/.test(digits) && !/^20\d{2}\D/.test(value)) phoneCandidates.push(value);
       }
     }
     found.phone=[...new Set(phoneCandidates)][0]||"";
   }
   if (!found.website) {
-    const urls=[...allText.matchAll(/https?:\\/\\/[^\\s)\\]>"]+/g)].map(m=>m[0].replace(/[.,;]+$/,""));
-    const businessHost=urls.find(url=>{const h=normalizeHost(url);return h && !blockedHost.test(h) && !/\\.(pdf|jpg|jpeg|png|gif|svg|webp)$/i.test(url);});
+    const urls=[...allText.matchAll(/https?:\/\/[^\s)\]>"]+/g)].map(m=>m[0].replace(/[.,;]+$/,""));
+    const businessHost=urls.find(url=>{const h=normalizeHost(url);return h && !blockedHost.test(h) && !/\.(pdf|jpg|jpeg|png|gif|svg|webp)$/i.test(url);});
     if(businessHost) found.website=businessHost;
   }
-  const sourcePage=pages.find(p=>p.url && !/(google\\.com\\/search|bing\\.com\\/search|duckduckgo\\.com)/i.test(p.url))||pages[0];
+  const sourcePage=pages.find(p=>p.url && !/(google\.com\/search|bing\.com\/search|duckduckgo\.com)/i.test(p.url))||pages[0];
   found.source=sourcePage?.url||"";
   return found;
 }
