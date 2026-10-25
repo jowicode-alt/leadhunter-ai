@@ -17,6 +17,7 @@ const firebaseConfig = {
 const configReady = Boolean(firebaseConfig.apiKey && firebaseConfig.appId);
 const $ = (id) => document.getElementById(id);
 let creatingAccount = false, auth = null, db = null, activeUid = null;
+let activeLeads = [], selectedLead = null, lastWebsiteAnalysis = null, savedAppointment = null;
 
 function message(id, text, good = false) {
   const el = $(id); if (!el) return;
@@ -279,6 +280,7 @@ function renderWebsiteAnalysis(analysis, warning = "") {
     '<small class="field-help">Automated public-web research can be incomplete. Some sites/search engines block requests; buyer fit is not guaranteed.</small></div>';
 }
 function renderResults(leads) {
+  activeLeads = leads;
   $("result-count").textContent = `${leads.length} found`;
   const container = $("results-list"); container.replaceChildren();
   if (!leads.length) {
@@ -292,7 +294,7 @@ function renderResults(leads) {
     if (lead.phone) actions.push(`<a href="tel:${escapeHtml(lead.phone)}">Call ${escapeHtml(lead.phone)}</a>`);
     if (lead.email) actions.push(`<a href="mailto:${escapeHtml(lead.email)}">Email ${escapeHtml(lead.email)}</a>`);
     if (lead.map) actions.push(`<a href="${escapeHtml(lead.map)}" target="_blank" rel="noopener noreferrer">Map</a>`);
-    card.innerHTML = `<h3>${escapeHtml(lead.name)}</h3><p><strong>Type:</strong> ${escapeHtml(lead.category)}</p>${lead.address ? `<p><strong>Address:</strong> ${escapeHtml(lead.address)}</p>` : ""}${actions.length ? `<div class="lead-actions">${actions.join("")}</div>` : '<p>No public contact details listed.</p>'}<span class="lead-source">Source: OpenStreetMap · public listing, not independently verified</span>`;
+    card.innerHTML = `<h3>${escapeHtml(lead.name)}</h3><p><strong>Type:</strong> ${escapeHtml(lead.category)}</p>${lead.address ? `<p><strong>Address:</strong> ${escapeHtml(lead.address)}</p>` : ""}${actions.length ? `<div class="lead-actions">${actions.join("")}</div>` : '<p>No public contact details listed.</p>'}<div class="lead-actions"><button class="button button-light open-followup" type="button" data-lead-index="${activeLeads.indexOf(lead)}">Contact & schedule</button></div><span class="lead-source">Source: OpenStreetMap · public listing, not independently verified</span>`;
     container.appendChild(card);
   }
 }
@@ -315,6 +317,7 @@ $("discover-form").addEventListener("submit", async (event) => {
     const location = $("target-location").value.trim();
     if (!location) throw new Error("Enter a target location.");
     const analysis = await analyzeWebsite(website);
+    lastWebsiteAnalysis = analysis;
     renderWebsiteAnalysis(analysis);
     if (!analysis.leadQueries.length) {
       renderResults([]);
@@ -353,4 +356,107 @@ $("discover-form").addEventListener("submit", async (event) => {
   } catch(error) {
     message("discover-message",error.message || "Website research failed. Try again later. No credits were used.");
   } finally { button.disabled=false; }
+});
+
+function safeDomainName(value) {
+  try { return new URL(normalizeWebsite(value)).hostname.replace(/^www\./,""); } catch { return "our business"; }
+}
+function defaultOutreachMessage(lead) {
+  const businessUrl = lead.businessWebsite || $("website-url").value.trim();
+  const businessName = (lastWebsiteAnalysis && lastWebsiteAnalysis.title) || safeDomainName(businessUrl);
+  return "Hello " + (lead.name || "there") + ",\n\nI’m reaching out from " + businessName + ". I wanted to introduce our business and see whether a conversation about our products or services could be relevant to your team.\n\nWould you be open to a brief 15-minute introductory call this week? If this is not relevant, no problem at all.\n\nThank you,\n" + businessName + (businessUrl ? "\n" + businessUrl : "");
+}
+function defaultAppointmentTime() {
+  const date=new Date(); date.setDate(date.getDate()+1); date.setHours(10,0,0,0);
+  const pad=n=>String(n).padStart(2,"0");
+  return date.getFullYear()+"-"+pad(date.getMonth()+1)+"-"+pad(date.getDate())+"T"+pad(date.getHours())+":"+pad(date.getMinutes());
+}
+function openFollowupForLead(lead) {
+  selectedLead=lead; savedAppointment=null;
+  $("followup-title").textContent="Contact: "+(lead.name||"Prospect");
+  $("outreach-prospect").value=lead.name||"";
+  $("outreach-email").value=lead.email||"";
+  $("outreach-phone").value=lead.phone||"";
+  $("outreach-subject").value="Quick introduction for "+(lead.name||"your team");
+  $("outreach-message").value=defaultOutreachMessage(lead);
+  $("outreach-channel").value=lead.email?"email":(lead.phone?"whatsapp":"email");
+  $("open-contact").textContent=lead.email?"Open email app":(lead.phone?"Open WhatsApp":"Open contact app");
+  $("appointment-title").value="Introductory meeting with "+(lead.name||"prospect");
+  $("appointment-start").value=defaultAppointmentTime();
+  $("appointment-status").value="proposed"; $("appointment-notes").value="";
+  $("download-invite").disabled=true; message("outreach-status",""); message("appointment-message","");
+  show($("followup-panel"),true); loadAppointmentsForLead(activeUid,lead);
+  $("followup-panel").scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("results-list").addEventListener("click",event=>{
+  const button=event.target.closest(".open-followup"); if(!button)return;
+  const lead=activeLeads[Number(button.dataset.leadIndex)]; if(lead)openFollowupForLead(lead);
+});
+$("close-followup").addEventListener("click",()=>show($("followup-panel"),false));
+$("outreach-channel").addEventListener("change",()=>{
+  const channel=$("outreach-channel").value;
+  $("open-contact").textContent=channel==="call"?"Start phone call":(channel==="whatsapp"?"Open WhatsApp":"Open email app");
+});
+$("outreach-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!activeUid||!selectedLead)return message("outreach-status","Choose a prospect first.");
+  const draft={prospectId:selectedLead.id||"",prospectName:selectedLead.name||"",email:$("outreach-email").value.trim(),phone:$("outreach-phone").value.trim(),channel:$("outreach-channel").value,subject:$("outreach-subject").value.trim(),body:$("outreach-message").value.trim(),status:"draft",businessWebsite:selectedLead.businessWebsite||$("website-url").value.trim(),createdAt:serverTimestamp(),updatedAt:serverTimestamp()};
+  try { await addDoc(collection(db,"users",activeUid,"outreach"),draft); message("outreach-status","Draft saved. It has not been sent; review it and use Open contact app when ready.",true); }
+  catch { message("outreach-status","Could not save the draft. Check your Firestore rules and try again."); }
+});
+$("open-contact").addEventListener("click",()=>{
+  if(!selectedLead)return message("outreach-status","Choose a prospect first.");
+  const channel=$("outreach-channel").value,email=$("outreach-email").value.trim(),phone=$("outreach-phone").value.trim(),subject=$("outreach-subject").value.trim(),body=$("outreach-message").value.trim();
+  if(channel==="email"){
+    if(!email)return message("outreach-status","No public email is listed. Enter a business email first, or choose WhatsApp/phone.");
+    window.location.href="mailto:"+encodeURIComponent(email)+"?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);
+  } else if(channel==="whatsapp"){
+    const digits=phone.replace(/\D/g,"");
+    if(!digits)return message("outreach-status","No phone number is listed. Enter a number including country code first.");
+    window.open("https://wa.me/"+digits+"?text="+encodeURIComponent(body),"_blank","noopener,noreferrer");
+  } else {
+    if(!phone)return message("outreach-status","No phone number is listed. Add a number before starting the call.");
+    message("outreach-status","Call script ready. Your phone will open the dialler; respect any request not to be contacted.",true);
+    window.location.href="tel:"+phone.replace(/[^+\d]/g,"");
+  }
+});
+async function loadAppointmentsForLead(uid,lead){
+  const list=$("appointments-list"); list.innerHTML='<p class="muted">Loading appointments…</p>';
+  if(!uid||!lead)return;
+  try{
+    const snap=await getDocs(collection(db,"users",uid,"appointments"));
+    const items=snap.docs.map(d=>({...d.data(),id:d.id})).filter(item=>item.prospectId===(lead.id||"")).sort((a,b)=>String(a.startAt||"").localeCompare(String(b.startAt||"")));
+    if(!items.length){list.innerHTML='<p class="muted">No appointments saved for this prospect yet.</p>';return;}
+    list.replaceChildren();
+    for(const item of items){
+      const row=document.createElement("article");row.className="appointment-row";
+      const when=item.startAt?new Date(item.startAt).toLocaleString("en-UG",{dateStyle:"medium",timeStyle:"short",timeZone:"Africa/Kampala"}):"Time not set";
+      const state=({proposed:"Proposed — awaiting customer confirmation",confirmed:"Confirmed by customer","follow-up":"Follow-up reminder"})[item.status]||item.status||"Planned";
+      row.innerHTML="<strong>"+escapeHtml(item.title||"Meeting")+"</strong><p>"+escapeHtml(when)+" · "+escapeHtml(state)+"</p>"+(item.notes?"<p>"+escapeHtml(item.notes)+"</p>":"");
+      list.appendChild(row);
+    }
+  }catch{list.innerHTML='<p class="muted">Appointments could not be loaded. Check Firestore rules.</p>';}
+}
+$("appointment-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!activeUid||!selectedLead)return message("appointment-message","Choose a prospect first.");
+  const localValue=$("appointment-start").value;if(!localValue)return message("appointment-message","Choose a date and time.");
+  const start=new Date(localValue);if(Number.isNaN(start.getTime()))return message("appointment-message","Enter a valid date and time.");
+  const duration=Number($("appointment-duration").value)||30;
+  const item={prospectId:selectedLead.id||"",prospectName:selectedLead.name||"",title:$("appointment-title").value.trim(),startAt:start.toISOString(),localStart:localValue,timezone:"Africa/Kampala",durationMinutes:duration,status:$("appointment-status").value,notes:$("appointment-notes").value.trim(),contactEmail:$("outreach-email").value.trim(),contactPhone:$("outreach-phone").value.trim(),createdAt:serverTimestamp(),updatedAt:serverTimestamp()};
+  try{
+    const ref=await addDoc(collection(db,"users",activeUid,"appointments"),item);savedAppointment={...item,id:ref.id};$("download-invite").disabled=false;
+    message("appointment-message",item.status==="confirmed"?"Appointment saved as confirmed. Only mark it confirmed after the customer agrees.":"Appointment reminder saved. A proposed time is not a confirmed booking.",true);
+    await loadAppointmentsForLead(activeUid,selectedLead);await loadCounts(activeUid);
+  }catch{message("appointment-message","Could not save the appointment. Check your Firestore rules and try again.");}
+});
+function icsEscape(value){return String(value||"").replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/,/g,"\\,").replace(/;/g,"\\;");}
+$("download-invite").addEventListener("click",()=>{
+  if(!savedAppointment)return;
+  const start=new Date(savedAppointment.startAt),end=new Date(start.getTime()+savedAppointment.durationMinutes*60000);
+  const stamp=date=>date.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}Z$/,"Z");
+  const details=[savedAppointment.notes,"Status: "+savedAppointment.status,"Prospect: "+savedAppointment.prospectName,savedAppointment.contactEmail,savedAppointment.contactPhone].filter(Boolean).join("\n");
+  const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//LeadHunter AI//Appointments//EN","CALSCALE:GREGORIAN","BEGIN:VEVENT","UID:"+Date.now()+"@leadhunter-ai","DTSTAMP:"+stamp(new Date()),"DTSTART:"+stamp(start),"DTEND:"+stamp(end),"SUMMARY:"+icsEscape(savedAppointment.title),"DESCRIPTION:"+icsEscape(details),"END:VEVENT","END:VCALENDAR"].join("\r\n");
+  const blob=new Blob([ics],{type:"text/calendar;charset=utf-8"}),link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);link.download="leadhunter-appointment.ics";link.click();URL.revokeObjectURL(link.href);
 });
