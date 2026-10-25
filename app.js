@@ -343,11 +343,12 @@ $("discover-form").addEventListener("submit", async (event) => {
     let saved=0;
     for (const lead of leads) {
       try {
-        await addDoc(collection(db,"users",activeUid,"prospects"),{
-          ...lead,businessWebsite:website.href,
+        const savedRef = await addDoc(collection(db,"users",activeUid,"prospects"),{
+          ...lead,businessWebsite:website.href,sourceId:lead.id,
           websiteAnalysis:{title:analysis.title,matched:analysis.matched,pagesScanned:analysis.pagesScanned,externalSearches:analysis.externalSearches,buyerSegments:analysis.buyerSegments},
           savedAt:serverTimestamp()
         });
+        lead.id = savedRef.id;
         saved++;
       } catch { /* display source-backed results even if saving fails */ }
     }
