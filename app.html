@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f8faf9"><title>Workspace · LeadHunter AI</title>
-  <link rel="stylesheet" href="app.css?v=61709701">
+  <link rel="stylesheet" href="app.css?v=website-crawl-1">
 </head>
 <body>
   <header class="topbar"><a class="brand" href="index.html"><span class="brand-mark">L</span> LeadHunter <b>AI</b></a><div id="account-area" class="account-area"><span id="user-label">Not signed in</span><button id="signout-btn" class="button button-light hidden">Sign out</button></div></header>
@@ -20,13 +20,13 @@
       <button id="reset-password" class="text-button">Forgot password?</button><p id="auth-message" class="notice" role="status"></p>
     </section>
     <section id="workspace" class="hidden">
-      <div class="welcome-row"><div><div class="eyebrow">WORKSPACE</div><h1>Find businesses that could become customers.</h1><p class="muted">Start with your business website, then search public business listings by customer type and location.</p></div><span class="status-pill">Free public-data search</span></div>
+      <div class="welcome-row"><div><div class="eyebrow">WORKSPACE</div><h1>Find businesses that could become customers.</h1><p class="muted">LeadHunter scans your website text, estimates what you offer, and searches public business listings for possible buyers.</p></div><span class="status-pill">Free public-data search</span></div>
       <div class="stat-grid"><article class="stat"><span>Prospects saved</span><strong id="prospect-count">0</strong><small>Your saved records</small></article><article class="stat"><span>Campaigns</span><strong id="campaign-count">0</strong><small>Created by you</small></article><article class="stat"><span>Credits used</span><strong>0</strong><small>No paid credits are deducted</small></article></div>
       <div class="panel"><div class="panel-heading"><div><div class="eyebrow">NEW SEARCH</div><h2>Find potential customers</h2></div><span class="step-badge">01</span></div>
-        <p class="muted">Enter your website to record what you sell, then describe the types of businesses you want to reach. This first search uses public OpenStreetMap business listings; it does not yet crawl/analyze your own website or verify decision-makers.</p>
+        <p class="muted">We’ll try to read your homepage and up to two relevant pages, identify likely industry signals, then find public business listings in your target location. Buyer fit and contact details are not guaranteed.</p>
         <form id="discover-form">
           <label>Your business website<input id="website-url" type="text" inputmode="url" placeholder="jumia.com" autocomplete="url" required><small class="field-help">Just enter a domain like jumia.com. We’ll add https:// automatically.</small></label>
-          <label>Businesses you want to find<input id="buyer-description" type="text" placeholder="e.g. hotels, restaurants, clothing shops" required></label>
+          <label>Businesses you want to find<input id="buyer-description" type="text" placeholder="Optional: e.g. hotels, restaurants, clothing shops (leave blank to use website clues)"></label>
           <label>Target location<input id="target-location" type="text" value="Uganda" placeholder="e.g. Kampala, Uganda" required></label>
           <button id="discover-submit" class="button button-primary" type="submit">Search public listings <span aria-hidden="true">→</span></button>
         </form>
@@ -36,5 +36,5 @@
       <p class="footnote">Data source: OpenStreetMap contributors. Public listings may be incomplete or outdated. Confirm details before contacting businesses, respect opt-outs and applicable privacy/email rules.</p>
     </section>
   </main>
-  <script type="module" src="app.js?v=61709701"></script>
+  <script type="module" src="app.js?v=website-crawl-1"></script>
 </body></html>
