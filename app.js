@@ -6,20 +6,18 @@ import {
 import { getFirestore, doc, setDoc, getDocs, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 
 /*
- * Copy your web app's config from Firebase Console > Project settings > Your apps.
- * Firebase web config is not a server secret. Never put service-account keys here.
+ * Public Firebase Web App configuration.
+ * Never put Firebase service-account keys or other server secrets in client code.
  */
 const firebaseConfig = {
-  apiKey: "REPLACE_WITH_FIREBASE_WEB_API_KEY",
+  apiKey: "AIzaSyD7Z0zWtLU3ZGvfa67En5eKt9NNFQlC40Q",
   authDomain: "leadhunter-ai-8ac33.firebaseapp.com",
   projectId: "leadhunter-ai-8ac33",
-  appId: "REPLACE_WITH_FIREBASE_WEB_APP_ID"
+  storageBucket: "leadhunter-ai-8ac33.firebasestorage.app",
+  messagingSenderId: "290171538413",
+  appId: "1:290171538413:web:b1fce1118a87b4ba44f5e4"
 };
-const configReady = Boolean(
-  firebaseConfig.apiKey && firebaseConfig.appId &&
-  !firebaseConfig.apiKey.startsWith("REPLACE_") &&
-  !firebaseConfig.appId.startsWith("REPLACE_")
-);
+const configReady = Boolean(firebaseConfig.apiKey && firebaseConfig.appId);
 const $ = (id) => document.getElementById(id);
 let creatingAccount = false;
 let auth = null;
@@ -51,7 +49,7 @@ loginTab.addEventListener("click", () => setAuthMode(false));
 signupTab.addEventListener("click", () => setAuthMode(true));
 
 if (!configReady) {
-  message("auth-message", "Setup required: add your Firebase Web App apiKey and appId in app.js, then enable Email/Password sign-in in Firebase Authentication.");
+  message("auth-message", "Setup required: add your Firebase Web App configuration in app.js, then enable Email/Password sign-in in Firebase Authentication.");
   submit.disabled = true;
   submit.title = "Firebase setup is not complete";
   $("reset-password").disabled = true;
