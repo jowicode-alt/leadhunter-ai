@@ -132,7 +132,7 @@ async function searchPublicBusinesses(description, location) {
   const bounds = await getLocationBounds(location);
   const tags = categoryTags(description);
   const filters = tags.map(tag => `node${tag}(${bounds.south},${bounds.west},${bounds.north},${bounds.east});way${tag}(${bounds.south},${bounds.west},${bounds.north},${bounds.east});relation${tag}(${bounds.south},${bounds.west},${bounds.north},${bounds.east});`).join("");
-  const queryText = `[out:json][timeout:25];(${filters});out center tags 60;`;
+  const queryText = `[out:json][timeout:25];(${filters});out body center 60;`;
   const response = await fetch("https://overpass-api.de/api/interpreter", {
     method:"POST", headers:{"Content-Type":"text/plain;charset=UTF-8","Accept":"application/json"}, body:queryText
   });
