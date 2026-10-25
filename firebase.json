@@ -1,0 +1,26 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "**/.*",
+      "**/node_modules/**",
+      "**/functions/**",
+      "**/*.md",
+      "**/*.rules"
+    ],
+    "cleanUrls": true,
+    "headers": [
+      {
+        "source": "**/*.html",
+        "headers": [
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+          { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+        ]
+      }
+    ]
+  },
+  "firestore": { "rules": "firestore.rules" }
+}
