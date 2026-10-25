@@ -372,6 +372,57 @@ function defaultAppointmentTime() {
   const pad=n=>String(n).padStart(2,"0");
   return date.getFullYear()+"-"+pad(date.getMonth()+1)+"-"+pad(date.getDate())+"T"+pad(date.getHours())+":"+pad(date.getMinutes());
 }
+async function findPublicContactDetails(lead) {
+  const found = { email: lead.email || "", phone: lead.phone || "", website: lead.website || "", source: "" };
+  const host = (value) => { try { return new URL(/^https?:\\/\\//i.test(value) ? value : "https://" + value).hostname.replace(/^www\\./,""); } catch { return ""; } };
+  const candidates = [];
+  if (lead.website) {
+    const site = /^https?:\\/\\//i.test(lead.website) ? lead.website : "https://" + lead.website;
+    candidates.push(site, new URL("/contact", site).href, new URL("/contact-us", site).href, new URL("/about", site).href);
+  }
+  const queryText = '"' + (lead.name || "") + '" ' + (lead.targetLocation || "") + ' official website contact email phone';
+  candidates.push("https://www.google.com/search?q=" + encodeURIComponent(queryText));
+  const pages = [];
+  for (const candidate of [...new Set(candidates)]) {
+    try {
+      const response = await fetch("https://r.jina.ai/" + candidate, { headers: { "Accept": "text/plain" } });
+      if (!response.ok) continue;
+      const text = (await response.text()).slice(0,18000);
+      if (/captcha|unusual traffic|security verification|access denied|just a moment/i.test(text.slice(0,1800))) continue;
+      pages.push({ url:candidate, text });
+    } catch { /* a blocked page is not evidence of missing contact details */ }
+  }
+  const allText = pages.map(p=>p.text).join("\\n");
+  if (!found.email) {
+    const emails = [...new Set((allText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi) || []).map(e=>e.replace(/[.,;:)]+$/,"")))]
+      .filter(e=>!/(example\\.|domain\\.|yourcompany|wixpress|sentry|cloudflare|noreply|no-reply|invalid)/i.test(e));
+    const leadHost = host(lead.website);
+    found.email = emails.find(e=>leadHost && e.toLowerCase().endsWith("@"+leadHost)) || emails.find(e=>!/gmail\\.com$|yahoo\\.com$|hotmail\\.com$|outlook\\.com$/i.test(e)) || emails[0] || "";
+  }
+  if (!found.phone) {
+    const lines = allText.split(/\\r?\\n/);
+    const candidatesPhone = [];
+    for (const line of lines) {
+      if (!/phone|tel(?:ephone)?|call|whatsapp|contact|mobile/i.test(line)) continue;
+      for (const match of line.matchAll(/(?:\\+?\\d[\\d ().-]{7,}\\d)/g)) {
+        const value = match[0].trim().replace(/[.)]+$/,"");
+        const digits = value.replace(/\\D/g,"");
+        if (digits.length >= 9 && digits.length <= 15 && !/^0+$/.test(digits)) candidatesPhone.push(value);
+      }
+    }
+    found.phone = [...new Set(candidatesPhone)][0] || "";
+  }
+  if (!found.website) {
+    for (const page of pages) {
+      const urls = [...page.text.matchAll(/https?:\\/\\/[^\\s)\\]>"]+/g)].map(m=>m[0].replace(/[.,;]+$/,""));
+      const result = urls.find(u=>{const h=host(u);return h && !/(google\\.|jina\\.ai|openstreetmap\\.org|facebook\\.com|instagram\\.com|linkedin\\.com|youtube\\.com)/i.test(h);});
+      if (result) { found.website = result; break; }
+    }
+  }
+  const sourcePage = pages.find(p=>p.url && !p.url.includes("google.com/search")) || pages[0];
+  found.source = sourcePage ? sourcePage.url : "";
+  return found;
+}
 function openFollowupForLead(lead) {
   selectedLead=lead; savedAppointment=null;
   $("followup-title").textContent="Contact: "+(lead.name||"Prospect");
@@ -388,6 +439,24 @@ function openFollowupForLead(lead) {
   $("download-invite").disabled=true; message("outreach-status",""); message("appointment-message","");
   show($("followup-panel"),true); loadAppointmentsForLead(activeUid,lead);
   $("followup-panel").scrollIntoView({behavior:"smooth",block:"start"});
+  if (!lead.email || !lead.phone || !lead.website) {
+    message("outreach-status","Looking for publicly listed email, phone/WhatsApp, and website details…");
+    findPublicContactDetails(lead).then(found=>{
+      if (selectedLead !== lead) return;
+      if (!lead.email && found.email) lead.email=found.email;
+      if (!lead.phone && found.phone) lead.phone=found.phone;
+      if (!lead.website && found.website) lead.website=found.website;
+      $("outreach-email").value=lead.email||"";
+      $("outreach-phone").value=lead.phone||"";
+      $("outreach-channel").value=lead.email?"email":(lead.phone?"whatsapp":"email");
+      $("open-contact").textContent=lead.email?"Open email app":(lead.phone?"Open WhatsApp":"Open contact app");
+      if (found.email || found.phone || found.website) {
+        message("outreach-status","Found public contact details"+(found.source?" from "+found.source:"")+". Please verify they belong to this business before contacting.",true);
+      } else {
+        message("outreach-status","No reliable public email or phone number was found automatically. Check the business website/map listing or enter a verified contact manually.");
+      }
+    }).catch(()=>message("outreach-status","Automatic contact lookup was unavailable. You can still enter verified details manually."));
+  }
 }
 $("results-list").addEventListener("click",event=>{
   const button=event.target.closest(".open-followup"); if(!button)return;
